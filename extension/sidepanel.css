@@ -1,0 +1,16 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+#terminal {
+  height: 100%;
+}
+
+/* FitAddon subtracts padding on .xterm but not on its parent, where it
+   would push the last row out of view. */
+#terminal .xterm {
+  padding: 4px;
+}

@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "paneterm",
+  "version": "0.1.0",
+  "description": "A local terminal in Chrome's side panel.",
+  "minimum_chrome_version": "116",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAphiPDNFXxOawSMqpGdZgLru9023Uw51bGKGj3TBT28+KzZYq9avfe7urDPQQtSx1IqDosLDfD8Jrhoyc+Gs1qyfLOFm7yEW/zEDXGa6vHFYgPvev7SFu6MOJURT/IWsQGFRtzEUTyuu92mkIo4iA56xJvvOLF58Zen4CjYUbdhk30QWAD5c9Du0oFsknRlSROagiSJToxP2X4yweaGsC2H0pIWlqm1mMtAIQL3oVP2LoS8Wl7gbgKhEg4t11ZHLRChqSiaoxSUjhp0jj/9tzrALF85gghC4MSnNBwI7rxfbOXoP1KsHtec+K9SlP2ryeIul26DoIZ57KendSY6pn0QIDAQAB",
+  "permissions": ["sidePanel", "nativeMessaging"],
+  "background": { "service_worker": "background.js" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "action": { "default_title": "Open paneterm" }
+}

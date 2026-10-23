@@ -1,0 +1,5 @@
+@xterm/xterm      6.0.0   lib/xterm.mjs, css/xterm.css   LICENSE-xterm
+@xterm/addon-fit  0.11.0  lib/addon-fit.mjs              LICENSE-addon-fit
+
+Taken from the npm registry tarballs. The only change is that the
+sourceMappingURL comments are removed, since the source maps are not vendored.
