@@ -1,0 +1,3 @@
+# LF everywhere: shell scripts and the tests that read source files
+# break on CRLF checkouts.
+* text=auto eol=lf
