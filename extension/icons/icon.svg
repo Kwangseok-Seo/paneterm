@@ -1,0 +1,10 @@
+<!-- The source of icon-*.png, which Chrome needs as PNG at 16, 32, 48 and 128 px. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="5" y="12" width="118" height="104" rx="16" fill="#16181d" stroke="#4b5263" stroke-width="3"/>
+  <path d="M5 40 V28 A16 16 0 0 1 21 12 H107 A16 16 0 0 1 123 28 V40 Z" fill="#3b4150" stroke="#4b5263" stroke-width="3"/>
+  <circle cx="23" cy="26" r="5.5" fill="#ff5f57"/>
+  <circle cx="40" cy="26" r="5.5" fill="#febc2e"/>
+  <circle cx="57" cy="26" r="5.5" fill="#28c840"/>
+  <path d="M26 58 L48 76 L26 94" fill="none" stroke="#4ade80" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="58" y="86" width="32" height="12" rx="6" fill="#e5e7eb"/>
+</svg>
