@@ -4,62 +4,23 @@ package session
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"runtime"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/creack/pty"
-
-	"github.com/Kwangseok-Seo/paneterm/internal/nm"
 )
-
-// chunk caps the PTY bytes per "out" message. Base64 grows it by a third,
-// which stays far under nm.MaxOutgoing.
-const chunk = 32 * 1024
-
-// drain is how long an exited shell's last output gets to reach the panel.
-// The PTY normally closes at once; a background job still holding it would
-// otherwise hold back the exit forever.
-const drain = 100 * time.Millisecond
-
-// sender serializes writes to Chrome, which come from more than one
-// goroutine.
-type sender struct {
-	mu sync.Mutex
-	w  io.Writer
-}
-
-func (s *sender) send(m Message) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return nm.Write(s.w, m)
-}
-
-// fail reports err to the panel and returns it.
-func (s *sender) fail(err error) error {
-	s.send(Message{T: "error", Msg: err.Error()})
-	return err
-}
 
 // Run waits for "open", starts the user's login shell on a PTY, and pumps
 // bytes both ways until the shell exits or Chrome closes the port.
 func Run(in io.Reader, out io.Writer) error {
 	s := &sender{w: out}
-
-	var open Message
-	if err := nm.Read(in, &open); err != nil {
-		if errors.Is(err, io.EOF) {
-			return nil
-		}
-		return s.fail(err)
-	}
-	if open.T != "open" {
-		return s.fail(fmt.Errorf(`first message must be "open", got %q`, open.T))
+	open, err := readOpen(in, s)
+	if open == nil {
+		return err
 	}
 
 	cmd := shellCommand()
@@ -81,8 +42,11 @@ func Run(in io.Reader, out io.Writer) error {
 		exited <- exitCode(cmd.ProcessState)
 	}()
 
+	resize := func(cols, rows uint16) error {
+		return pty.Setsize(ptmx, &pty.Winsize{Cols: cols, Rows: rows})
+	}
 	disconnected := make(chan error, 1)
-	go func() { disconnected <- pumpInput(in, ptmx, s) }()
+	go func() { disconnected <- pumpInput(in, ptmx, resize, s) }()
 
 	select {
 	case code := <-exited:
@@ -143,46 +107,4 @@ func fallbackLocale() string {
 		return "en_US.UTF-8"
 	}
 	return "C.UTF-8"
-}
-
-// pumpOutput forwards PTY output until the PTY closes, which happens once
-// the shell and everything it left holding the terminal are gone.
-func pumpOutput(ptmx *os.File, s *sender) {
-	buf := make([]byte, chunk)
-	for {
-		n, err := ptmx.Read(buf)
-		if n > 0 {
-			if s.send(Message{T: "out", D: buf[:n]}) != nil {
-				return
-			}
-		}
-		if err != nil {
-			return
-		}
-	}
-}
-
-// pumpInput applies panel messages to the PTY until Chrome closes stdin.
-func pumpInput(in io.Reader, ptmx *os.File, s *sender) error {
-	for {
-		var m Message
-		if err := nm.Read(in, &m); err != nil {
-			return err
-		}
-		switch m.T {
-		case "in":
-			if _, err := ptmx.Write(m.D); err != nil {
-				return err
-			}
-		case "resize":
-			if err := pty.Setsize(ptmx, &pty.Winsize{Cols: m.Cols, Rows: m.Rows}); err != nil {
-				return err
-			}
-		default:
-			// The extension and the host are updated separately, so a newer
-			// panel may send what this host doesn't know. Say so; keep the
-			// shell.
-			s.send(Message{T: "error", Msg: fmt.Sprintf("unknown message type %q", m.T)})
-		}
-	}
 }

@@ -14,9 +14,11 @@ maintainer may be in Korean; that never reaches the files.
 - `cmd/paneterm-host`: the native host. Chrome passes the caller's origin
   as the first argument; anything else is a subcommand.
 - `internal/nm`: native messaging framing only.
-- `internal/session`: one PTY session per host process. The panel/host
-  protocol is documented on `session.Message`.
-- `internal/install`: writes the host manifest Chrome reads.
+- `internal/session`: one PTY session per host process (a ConPTY running
+  PowerShell on Windows). The panel/host protocol is documented on
+  `session.Message`.
+- `internal/install`: writes the host manifest Chrome reads, and on Windows
+  the registry key that points to it.
 - `e2e/`: drives the real extension in Chromium on Linux, in Docker.
 - Decisions: `docs/adr/`.
 
@@ -34,7 +36,9 @@ maintainer may be in Korean; that never reaches the files.
 
 ## Testing
 
-- `go test ./...` everywhere; PTY tests in `internal/session` run on Unix
-  only. On Windows, cross-compile the test binary and run it in a Linux
-  container.
+- `go test ./...` everywhere. `internal/session` tests are per OS (Unix PTY
+  with sh, Windows ConPTY with PowerShell). On Windows, also cross-compile
+  the Unix test binary and run it in a Linux container.
+- The Windows install tests write to `HKCU\Software\paneterm-test` and
+  delete it; they never touch Chrome's real host key.
 - `e2e/run.sh` before any change to the extension or the protocol.

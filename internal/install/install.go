@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 )
 
 // HostName is the name the extension passes to chrome.runtime.connectNative.
@@ -43,8 +42,8 @@ func ExtensionID(manifest []byte) (string, error) {
 }
 
 // Install writes the host manifest that lets the extension, and only it,
-// start this executable. It returns the manifest's path and the ID it
-// allowed.
+// start this executable, and on Windows registers it. It returns the
+// manifest's path and the ID it allowed.
 func Install(extensionManifest []byte) (path, id string, err error) {
 	if path, err = manifestPath(); err != nil {
 		return "", "", err
@@ -72,33 +71,31 @@ func Install(extensionManifest []byte) (path, id string, err error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", "", err
 	}
-	return path, id, os.WriteFile(path, append(host, '\n'), 0o644)
+	if err := os.WriteFile(path, append(host, '\n'), 0o644); err != nil {
+		return "", "", err
+	}
+	// A failed registration leaves the manifest in place: its path never
+	// changes, so an earlier install's registration may point to it.
+	if err := register(path); err != nil {
+		return "", "", err
+	}
+	return path, id, nil
 }
 
-// Uninstall removes the host manifest. It returns the path it removed.
+// Uninstall removes what Install wrote. It returns the manifest's path.
 func Uninstall() (string, error) {
 	path, err := manifestPath()
 	if err != nil {
 		return "", err
 	}
-	return path, os.Remove(path)
+	return path, unregister(path)
 }
 
-// manifestPath is where Chrome looks for a user's host manifests: the
-// NativeMessagingHosts folder of its default profile directory.
+// manifestPath is where Install writes the host manifest.
 func manifestPath() (string, error) {
-	home, err := os.UserHomeDir()
+	dir, err := manifestDir()
 	if err != nil {
 		return "", err
 	}
-	var dir string
-	switch runtime.GOOS {
-	case "darwin":
-		dir = filepath.Join(home, "Library", "Application Support", "Google", "Chrome")
-	case "linux":
-		dir = filepath.Join(home, ".config", "google-chrome")
-	default:
-		return "", fmt.Errorf("install supports macOS and Linux, not %s", runtime.GOOS)
-	}
-	return filepath.Join(dir, "NativeMessagingHosts", HostName+".json"), nil
+	return filepath.Join(dir, HostName+".json"), nil
 }

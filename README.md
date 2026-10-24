@@ -12,7 +12,9 @@ the extension draws the terminal, and `paneterm-host`, a small Go program,
 runs the shell. Chrome starts one host per panel and talks to it over
 [native messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging).
 
-Status: early. Built for macOS; also runs on Linux.
+Status: early. Built for macOS; also runs on Linux, and on Windows 10
+version 1809 or later, which brought the pseudo console paneterm uses there
+(tested on Windows 11).
 
 ## Install
 
@@ -35,11 +37,18 @@ Then load the extension:
 rebuild it somewhere else, run `install` again. To remove the registration,
 run `paneterm-host uninstall`.
 
+On Windows, `install` writes the host manifest to `%APPDATA%\paneterm`
+and points Chrome to it from a registry key under
+`HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts`, which is
+where Chrome looks there. `uninstall` removes the key and the folder.
+
 ## Using it
 
 - Each panel runs its own shell. Closing the panel hangs up that shell, the
   same as closing a terminal window.
 - When the shell exits, press Enter to start a new one.
+- On Windows the shell is PowerShell 7 (`pwsh`) if it is installed, and
+  Windows PowerShell otherwise.
 - If the panel says `Specified native messaging host not found`, run
   `paneterm-host install`.
 
@@ -59,7 +68,9 @@ worth knowing what can reach it:
 ## Limitations
 
 - Google Chrome only. Other Chromium browsers (Arc, Brave, Edge) read host
-  manifests from their own folders, which `install` doesn't write yet.
+  manifests from their own folders or registry keys, which `install`
+  doesn't write yet.
+- On Windows there is no way yet to pick a shell other than PowerShell.
 - No tabs, splits, or sessions that survive closing the panel.
 - Some company policies block native messaging hosts
   (`NativeMessagingBlocklist`) or unpacked extensions. Check
@@ -68,7 +79,7 @@ worth knowing what can reach it:
 ## Development
 
 ```sh
-go test ./...      # PTY tests need macOS or Linux
+go test ./...      # session tests are per OS: Unix PTY or Windows ConPTY
 e2e/run.sh         # needs Docker: drives the extension in Chromium
 ```
 

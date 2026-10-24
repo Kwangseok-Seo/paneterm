@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"testing"
 
 	"github.com/Kwangseok-Seo/paneterm"
@@ -31,10 +30,7 @@ func TestExtensionIDNeedsKey(t *testing.T) {
 }
 
 func TestInstallWritesHostManifest(t *testing.T) {
-	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
-		t.Skip("install supports macOS and Linux only")
-	}
-	t.Setenv("HOME", t.TempDir())
+	isolate(t)
 	path, id, err := Install(paneterm.ExtensionManifest)
 	if err != nil {
 		t.Fatal(err)
