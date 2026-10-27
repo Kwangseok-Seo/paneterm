@@ -3,6 +3,8 @@
 A local terminal in Chrome's side panel. Click the toolbar icon and your
 login shell opens next to the page you're on.
 
+![paneterm next to a GitHub page: naming a tab, running git and Claude Code, then resizing and closing the panel](docs/demo.gif)
+
 ```
 side panel (xterm.js)  ⇄  native messaging  ⇄  paneterm-host  ⇄  PTY  ⇄  $SHELL -l
 ```
