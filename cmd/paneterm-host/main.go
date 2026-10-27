@@ -1,5 +1,6 @@
 // Command paneterm-host is the native half of paneterm. Chrome starts it
-// when the side panel connects, and it runs a shell on a PTY for that panel.
+// when a tab in the side panel connects, and it runs a shell on a PTY for
+// that tab.
 //
 //	paneterm-host install     register with Chrome for the current user
 //	paneterm-host uninstall   remove the registration

@@ -9,7 +9,7 @@ side panel (xterm.js)  ⇄  native messaging  ⇄  paneterm-host  ⇄  PTY  ⇄ 
 
 A Chrome extension can't start processes, so paneterm comes in two parts:
 the extension draws the terminal, and `paneterm-host`, a small Go program,
-runs the shell. Chrome starts one host per panel and talks to it over
+runs the shell. Chrome starts one host per terminal tab and talks to it over
 [native messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging).
 
 Status: early. Built for macOS; also runs on Linux, and on Windows 10
@@ -44,8 +44,10 @@ where Chrome looks there. `uninstall` removes the key and the folder.
 
 ## Using it
 
-- Each panel runs its own shell. Closing the panel hangs up that shell, the
-  same as closing a terminal window.
+- Each tab runs its own shell. **+** opens a tab and **×** closes one,
+  which hangs up its shell, the same as closing a terminal window. Closing
+  the last tab starts a fresh shell, and closing the panel hangs up all of
+  them.
 - When the shell exits, press Enter to start a new one.
 - On Windows the shell is PowerShell 7 (`pwsh`) if it is installed, and
   Windows PowerShell otherwise.
@@ -71,7 +73,8 @@ worth knowing what can reach it:
   manifests from their own folders or registry keys, which `install`
   doesn't write yet.
 - On Windows there is no way yet to pick a shell other than PowerShell.
-- No tabs, splits, or sessions that survive closing the panel.
+- No keyboard shortcuts for tabs yet, no splits, and no sessions that
+  survive closing the panel.
 - Some company policies block native messaging hosts
   (`NativeMessagingBlocklist`) or unpacked extensions. Check
   `chrome://policy` if the panel can't connect.
@@ -85,8 +88,8 @@ e2e/run.sh         # needs Docker: drives the extension in Chromium
 
 The e2e run loads the extension into Chromium on Linux, registers the host
 with `paneterm-host install`, and checks commands, non-ASCII text, resizing,
-Ctrl-C, bulk output, exit and restart, cleanup after closing panels, and
-that a web page has no way to reach the extension.
+Ctrl-C, bulk output, tabs, exit and restart, cleanup after closing tabs and
+panels, and that a web page has no way to reach the extension.
 
 The protocol between panel and host is documented on `session.Message`.
 

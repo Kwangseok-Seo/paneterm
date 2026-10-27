@@ -25,6 +25,20 @@ function processes() {
     .filter((l) => /paneterm-host|zsh/.test(l));
 }
 
+// Chrome starts each host with the extension's origin as its argument.
+const hosts = () => processes().filter((l) => l.includes('paneterm-host chrome-extension://'));
+const shells = () => processes().filter((l) => !l.includes('paneterm-host'));
+
+// Polls until list() has n entries, and returns the last list read.
+async function settle(list, n, ms = 5000) {
+  let got = list();
+  for (const end = Date.now() + ms; got.length !== n && Date.now() < end; await sleep(50)) got = list();
+  return got;
+}
+
+// A new shell's screen holds its first prompt and nothing else.
+const onlyPrompt = (s) => /^\S+#$/.test(s.trim());
+
 const installed = execFileSync(HOST, ['install'], { encoding: 'utf8' });
 const id = installed.match(/allowed extension: (\w+)/)[1];
 log(`paneterm-host install -> allowed ${id}`);
@@ -76,7 +90,7 @@ try {
     await panel.page.setViewport({ width: 800, height });
     await sleep(100);
     const overflow = await panel.page.evaluate(
-      () => document.querySelector('.xterm-screen').getBoundingClientRect().bottom - window.innerHeight,
+      () => document.querySelector('.pane.active .xterm-screen').getBoundingClientRect().bottom - window.innerHeight,
     );
     if (overflow > 0) clipped.push(`${height}:${overflow}px`);
   }
@@ -96,13 +110,76 @@ try {
   await panel.run('seq 1 300000; echo "seq-end=$((300000/1000))k"');
   check('300k lines of output arrive', await panel.waitFor('seq-end=300k', 30_000), `${Date.now() - start}ms`);
 
+  check('a new tab opens with a zsh prompt', await panel.newTab());
+  let h = await settle(hosts, 2);
+  check('each tab runs its own host', h.length === 2, `${h.length} hosts`);
+  await panel.run('echo "tab2=$((5*5))"');
+  await panel.waitFor('tab2=25');
+  await panel.selectTab(0);
+  await panel.screen();
+  check('each tab keeps its own screen', panel.text.includes('seq-end=300k') && !panel.text.includes('tab2=25'));
+  await panel.run('echo "back=$((7*3))"');
+  check('typing goes to the shown tab', await panel.waitFor('back=21'));
+
+  // Tab 1's shell writes its size on SIGWINCH to a file that tab 2 reads, so
+  // the size is the one it got while hidden, not on being shown again.
+  await panel.run(`trap 'echo "hidden=$(stty size)" >/tmp/winch' WINCH`);
+  const shown = await panel.size();
+  await panel.selectTab(1);
+  await panel.page.setViewport({ width: 600, height: 400 });
+  const seen = await panel.size();
+  await panel.run('for i in {1..20}; do [[ -s /tmp/winch ]] && break; sleep 0.1; done; cat /tmp/winch');
+  const hidden = await panel.waitFor(`hidden=${seen}`, 3000);
+  check('a tab in the background follows the panel size', hidden && seen !== shown, `${shown} -> ${seen}`);
+  await panel.selectTab(0);
+  const back = await panel.size();
+  check('a tab shown again shows its last line', back === seen, `size line read: ${back}`);
+  await panel.page.setViewport({ width: 800, height: 500 });
+
+  await panel.closeTab(1);
+  h = await settle(hosts, 1);
+  let sh = await settle(shells, 1);
+  check('closing a tab stops its host and shell', h.length === 1 && sh.length === 1,
+    `${h.length} hosts, ${sh.length} shells`);
+  await panel.run('echo "still=$((8+8))"');
+  check('the other tab keeps running', await panel.waitFor('still=16'));
+
+  // Tabs 1 X Y Z: closing X while shown must show Y, the tab after it, and
+  // closing Z while shown, now last, must show Y, the one before. The tab
+  // shown must also get the keys.
+  await panel.newTab();
+  await panel.newTab();
+  await panel.run('echo "y=$((4*6))"');
+  await panel.waitFor('y=24');
+  await panel.newTab();
+  await panel.selectTab(1);
+  await panel.closeTab(1);
+  await panel.run('echo "next=$((9+1))"');
+  check('closing the shown tab shows the one after it', await panel.waitFor('next=10') && panel.text.includes('y=24'));
+  await panel.selectTab(2);
+  await panel.closeTab(2);
+  await panel.run('echo "prev=$((6+5))"');
+  check('closing the shown last tab shows the one before it',
+    await panel.waitFor('prev=11') && panel.text.includes('next=10'));
+  await panel.closeTab(1);
+
   const second = await openPanel();
-  const hosts = processes().filter((l) => l.includes('paneterm-host chrome-extension://'));
-  check('two panels run two hosts', hosts.length === 2, `${hosts.length} hosts`);
+  h = await settle(hosts, 2);
+  check('two panels run two hosts', h.length === 2, `${h.length} hosts`);
+  await second.run('echo "old=$((4*4))"');
+  await second.waitFor('old=16');
+  await second.closeTab(0);
+  const fresh = await second.waitFor(onlyPrompt);
+  h = await settle(hosts, 2);
+  check('closing the only tab starts a new shell', fresh && h.length === 2, `${h.length} hosts`);
+  await second.newTab();
+  const full = await settle(hosts, 3);
   await second.page.close();
-  await sleep(1000);
-  const left = processes().filter((l) => l.includes('paneterm-host chrome-extension://'));
-  check('closing a panel stops its host', left.length === 1, `${left.length} hosts left`);
+  h = await settle(hosts, 1);
+  sh = await settle(shells, 1);
+  check('closing a panel stops the hosts and shells of all its tabs',
+    full.length === 3 && h.length === 1 && sh.length === 1,
+    `${full.length} -> ${h.length} hosts, ${sh.length} shells left`);
 
   await panel.run('exit 3');
   check('exit shows the code', await panel.waitFor('[process exited with code 3]'));
@@ -150,9 +227,10 @@ async function openPanel() {
   const panel = {
     page,
     text: '',
+    sizes: 0,
     async screen() {
       this.text = await page.evaluate(() =>
-        [...document.querySelectorAll('.xterm-rows > div')]
+        [...document.querySelectorAll('.pane.active .xterm-rows > div')]
           .map((row) => row.textContent.replace(/ /g, ' ').trimEnd())
           .join('\n'),
       );
@@ -169,6 +247,24 @@ async function openPanel() {
     async run(line) {
       await page.keyboard.type(line);
       await page.keyboard.press('Enter');
+    },
+    // Reading only a fresh prompt, this can't pass on the tab shown before.
+    async newTab() {
+      await page.click('#new-tab');
+      return this.waitFor(onlyPrompt);
+    },
+    // Each call reads a size line of its own, never one left on screen.
+    async size() {
+      const tag = `size${++this.sizes}`;
+      await this.run(`echo "${tag}=$(stty size)"`);
+      const re = new RegExp(`^${tag}=(\\d+ \\d+)$`, 'm');
+      return (await this.waitFor(re, 3000)) ? this.text.match(re)[1] : undefined;
+    },
+    async selectTab(i) {
+      await (await page.$$('.tab .label'))[i].click();
+    },
+    async closeTab(i) {
+      await (await page.$$('.tab .close'))[i].click();
     },
     lastLine(prefix) {
       return this.text.split('\n').filter((l) => l.includes(prefix)).pop() ?? '';

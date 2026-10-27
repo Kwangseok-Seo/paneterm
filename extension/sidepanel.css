@@ -5,12 +5,88 @@ html, body {
   overflow: hidden;
 }
 
-#terminal {
-  height: 100%;
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#bar {
+  display: flex;
+  flex: none;
+  background: #1a1a1a;
+  font: 12px system-ui, sans-serif;
+  color: #999;
+}
+
+/* Tabs past the panel's width scroll, while + stays in view after them. */
+#tabs {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}
+
+.tab {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px 0 10px;
+  height: 26px;
+  border-right: 1px solid #000;
+  cursor: default;
+  user-select: none;
+}
+
+.tab.active {
+  background: #000;
+  color: #ddd;
+}
+
+/* An element selector, so the rules below override it. */
+button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tab .close {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 3px;
+}
+
+.tab .close:hover, #new-tab:hover {
+  background: #333;
+  color: #fff;
+}
+
+#new-tab {
+  flex: none;
+  width: 28px;
+  font-size: 16px;
+}
+
+#panes {
+  position: relative;
+  flex: 1;
+}
+
+.pane {
+  position: absolute;
+  inset: 0;
+}
+
+.pane:not(.active) {
+  visibility: hidden;
 }
 
 /* FitAddon subtracts padding on .xterm but not on its parent, where it
    would push the last row out of view. */
-#terminal .xterm {
+.pane .xterm {
   padding: 4px;
 }

@@ -1,5 +1,6 @@
-// Package session runs one terminal session for one side panel: Chrome
-// starts a host process per port, and the host serves exactly one shell.
+// Package session runs one terminal session for one tab of the side panel:
+// Chrome starts a host process per port, and the host serves exactly one
+// shell.
 package session
 
 import (

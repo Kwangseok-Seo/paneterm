@@ -11,3 +11,7 @@ host process per panel, and Chrome's 1 MB cap on each message from the host.
 Amended 2026-10-24, with Windows support: there the install step writes the
 manifest to a folder of paneterm's own, plus a registry key under
 `HKEY_CURRENT_USER` that points Chrome to it. The decision is unchanged.
+
+Amended 2026-10-27, with tabs: each tab in the panel opens its own port, so
+the cost is one host process per tab rather than per panel. The decision is
+unchanged.
