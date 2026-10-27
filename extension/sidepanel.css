@@ -44,6 +44,24 @@ body {
   color: #ddd;
 }
 
+/* Titles are the program's to choose and can run long. */
+.tab .label {
+  max-width: 14em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab .rename {
+  width: 10em;
+  padding: 0 2px;
+  border: 1px solid #555;
+  background: #000;
+  color: #ddd;
+  font: inherit;
+  outline: none;
+}
+
 /* An element selector, so the rules below override it. */
 button {
   border: 0;

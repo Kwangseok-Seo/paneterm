@@ -36,6 +36,14 @@ async function settle(list, n, ms = 5000) {
   return got;
 }
 
+// Polls until ok() is true, for up to ms.
+async function until(ok, ms = 3000) {
+  for (const end = Date.now() + ms; Date.now() < end; await sleep(50)) {
+    if (await ok()) return true;
+  }
+  return false;
+}
+
 // A new shell's screen holds its first prompt and nothing else.
 const onlyPrompt = (s) => /^\S+#$/.test(s.trim());
 
@@ -163,6 +171,117 @@ try {
     await panel.waitFor('prev=11') && panel.text.includes('next=10'));
   await panel.closeTab(1);
 
+  // A tab's label is a name given by hand, else the title the shell or a
+  // program sets, else the tab's number. The shell computes each title, so
+  // none can come from the echoed command line.
+  await panel.run(`printf '\\e]0;t%s\\a' $((6*7))`);
+  check('a title set by a program names the tab', await panel.waitLabel(0, 't42'), await panel.label(0));
+  // The title a Windows console gave a new pwsh, as measured.
+  await panel.run(`printf '\\e]0;%s\\a' 'C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe\\pwsh.exe'`);
+  check('a Windows shell path as title leaves the number', await panel.waitLabel(0, '1'), await panel.label(0));
+  await panel.run(`printf '\\e]0;t%s\\a' $((7*7))`);
+  await panel.waitLabel(0, 't49');
+  // A command typed but not yet run, which the Enter ending the rename
+  // must not run.
+  await panel.page.keyboard.type('echo "leak=$((6*7))"');
+  await panel.startRename(0);
+  await panel.page.keyboard.type('ork');
+  // Clicking the field's left edge puts the caret before the text.
+  await (await panel.page.$('.rename'))?.click({ offset: { x: 2, y: 5 } });
+  await panel.page.keyboard.type('w');
+  await panel.page.keyboard.press('Enter');
+  check('double-clicking a tab renames it, and clicks in the name move its caret',
+    await panel.waitLabel(0, 'work'), await panel.label(0));
+  // Ctrl-U drops the typed command.
+  await panel.page.keyboard.down('Control');
+  await panel.page.keyboard.press('u');
+  await panel.page.keyboard.up('Control');
+  await panel.run(`printf '\\e]0;t%s\\a' $((8*8)); echo "titled=$((5*9))"`);
+  await panel.waitFor('titled=45');
+  check('a name given by hand outlasts later titles', (await panel.label(0)) === 'work', await panel.label(0));
+  check('the Enter ending a rename stays out of the shell', !panel.text.includes('leak=42'));
+
+  await panel.startRename(0);
+  await panel.page.keyboard.type('tabbed');
+  await panel.page.keyboard.press('Tab');
+  await panel.run('echo "tab=$((3*5))"');
+  check('Tab keeps the name and gives the keys back to the shell',
+    await panel.waitFor('tab=15') && (await panel.label(0)) === 'tabbed', await panel.label(0));
+
+  // Focus going to another window and back leaves the field open.
+  await panel.startRename(0);
+  await panel.page.keyboard.type('half');
+  const focused = () => panel.page.evaluate(() => document.hasFocus());
+  const away = await browser.newPage();
+  await away.bringToFront();
+  const left = await until(async () => !(await focused()));
+  await panel.page.bringToFront();
+  await away.close();
+  await until(focused);
+  await panel.page.keyboard.type('way');
+  await panel.page.keyboard.press('Enter');
+  check('leaving the window keeps the name being typed', left && await panel.waitLabel(0, 'halfway'),
+    `${await panel.label(0)}, window left: ${left}`);
+
+  // An IME takes the first Enter to end its composition; only the next one
+  // ends the rename.
+  await panel.startRename(0);
+  await panel.page.keyboard.type('작');
+  const ime = await panel.page.createCDPSession();
+  await ime.send('Input.imeSetComposition', { text: '업', selectionStart: 1, selectionEnd: 1 });
+  await panel.page.keyboard.press('Enter');
+  const composing = (await panel.page.$$('.rename')).length === 1;
+  await ime.send('Input.insertText', { text: '업' });
+  await panel.page.keyboard.press('Enter');
+  check('the Enter ending an IME composition stays in the name',
+    composing && await panel.waitLabel(0, '작업'), `${await panel.label(0)}, field open after it: ${composing}`);
+
+  await panel.startRename(0);
+  await panel.page.keyboard.type('zzz');
+  await panel.page.keyboard.press('Escape');
+  await panel.run('echo "esc=$((2*9))"');
+  check('Escape keeps the old name and gives the keys back to the shell',
+    await panel.waitFor('esc=18') && (await panel.label(0)) === '작업', await panel.label(0));
+  await panel.startRename(0);
+  await panel.page.keyboard.press('Enter');
+  check('an empty name hands the label back to the title', await panel.waitLabel(0, 't64'), await panel.label(0));
+  await panel.run(`printf '\\e]0;\\a'`);
+  check('an empty title gives the tab its number back', await panel.waitLabel(0, '1'), await panel.label(0));
+
+  // In a narrow panel, tab 1's long name overflows the bar once a second
+  // tab opens, which has to come into view whole, label and ×.
+  await panel.page.setViewport({ width: 260, height: 500 });
+  await panel.startRename(0);
+  await panel.page.keyboard.type('a name long enough to overflow');
+  await panel.page.keyboard.press('Enter');
+  await panel.newTab();
+  const past = await panel.page.evaluate(() =>
+    [...document.querySelectorAll('.tab .close')].pop().getBoundingClientRect().right
+      - document.getElementById('tabs').getBoundingClientRect().right);
+  check('a new tab scrolls into view whole', past <= 0, `its × ends ${past}px past the bar`);
+  await panel.page.setViewport({ width: 800, height: 500 });
+  await panel.selectTab(0);
+  await panel.startRename(0);
+  await panel.page.keyboard.press('Enter');
+  await panel.selectTab(1);
+
+  // Double-clicking × closes tab 1, and the second click lands on the label
+  // of the wider tab that slides under the pointer.
+  await panel.run(`printf '\\e]0;wide-%s-title\\a' $((3*3))`);
+  await panel.waitLabel(1, 'wide-9-title');
+  const [x, y] = await panel.page.$$eval('.tab .close', ([close]) => {
+    const r = close.getBoundingClientRect();
+    return [r.x + r.width / 2, r.y + r.height / 2];
+  });
+  await panel.page.mouse.click(x, y, { count: 2 });
+  const under = await panel.page.$$eval('.tab .label', ([label], x) => {
+    const r = label.getBoundingClientRect();
+    return r.left <= x && x <= r.right;
+  }, x);
+  const fields = (await panel.page.$$('.rename')).length;
+  check("a double click closing a tab doesn't rename the next one", under && fields === 0,
+    `second click on its label: ${under}, ${fields} fields`);
+
   const second = await openPanel();
   h = await settle(hosts, 2);
   check('two panels run two hosts', h.length === 2, `${h.length} hosts`);
@@ -186,6 +305,8 @@ try {
   await panel.page.keyboard.press('Enter');
   await panel.run('echo "again=$((1+1))"');
   check('Enter starts a new shell', await panel.waitFor('again=2'));
+  // The shell that titled this tab "wide-9-title" is gone.
+  check('a new shell starts untitled', /^\d+$/.test(await panel.label(0)), await panel.label(0));
 
   execFileSync(HOST, ['uninstall']);
   await panel.run('exit');
@@ -265,6 +386,17 @@ async function openPanel() {
     },
     async closeTab(i) {
       await (await page.$$('.tab .close'))[i].click();
+    },
+    label(i) {
+      return page.$$eval('.tab .label', (labels, i) => labels[i]?.textContent, i);
+    },
+    waitLabel(i, want) {
+      return until(async () => (await this.label(i)) === want);
+    },
+    // Double-clicks the tab's label and clears the field that opens.
+    async startRename(i) {
+      await (await page.$$('.tab .label'))[i].click({ count: 2 });
+      await page.keyboard.press('Backspace');
     },
     lastLine(prefix) {
       return this.text.split('\n').filter((l) => l.includes(prefix)).pop() ?? '';

@@ -48,6 +48,9 @@ where Chrome looks there. `uninstall` removes the key and the folder.
   which hangs up its shell, the same as closing a terminal window. Closing
   the last tab starts a fresh shell, and closing the panel hangs up all of
   them.
+- A tab is named by the title its shell or a program in it sets, and by
+  its number when there is none. Double-click a tab to name it yourself;
+  clearing the name gives it back to the title.
 - When the shell exits, press Enter to start a new one.
 - On Windows the shell is PowerShell 7 (`pwsh`) if it is installed, and
   Windows PowerShell otherwise.
@@ -88,7 +91,7 @@ e2e/run.sh         # needs Docker: drives the extension in Chromium
 
 The e2e run loads the extension into Chromium on Linux, registers the host
 with `paneterm-host install`, and checks commands, non-ASCII text, resizing,
-Ctrl-C, bulk output, tabs, exit and restart, cleanup after closing tabs and
+Ctrl-C, bulk output, tabs and their names, exit and restart, cleanup after closing tabs and
 panels, and that a web page has no way to reach the extension.
 
 The protocol between panel and host is documented on `session.Message`.
