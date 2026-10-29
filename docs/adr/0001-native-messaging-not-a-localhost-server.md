@@ -15,3 +15,8 @@ manifest to a folder of paneterm's own, plus a registry key under
 Amended 2026-10-27, with tabs: each tab in the panel opens its own port, so
 the cost is one host process per tab rather than per panel. The decision is
 unchanged.
+
+Amended 2026-10-29, with the macOS agent (ADR-0002): there the host hands
+Chrome's pipes to the agent over a Unix socket in a folder only the user can
+open. Web pages still can't reach it. The user's own processes can, and they
+could start a shell without it. The decision is unchanged.

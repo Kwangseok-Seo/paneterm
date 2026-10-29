@@ -42,8 +42,9 @@ func ExtensionID(manifest []byte) (string, error) {
 }
 
 // Install writes the host manifest that lets the extension, and only it,
-// start this executable, and on Windows registers it. It returns the
-// manifest's path and the ID it allowed.
+// start this executable. On Windows it registers the manifest, and on
+// macOS it starts the agent. It returns the manifest's path and the ID it
+// allowed.
 func Install(extensionManifest []byte) (path, id string, err error) {
 	if path, err = manifestPath(); err != nil {
 		return "", "", err
@@ -76,7 +77,7 @@ func Install(extensionManifest []byte) (path, id string, err error) {
 	}
 	// A failed registration leaves the manifest in place: its path never
 	// changes, so an earlier install's registration may point to it.
-	if err := register(path); err != nil {
+	if err := register(path, exe); err != nil {
 		return "", "", err
 	}
 	return path, id, nil

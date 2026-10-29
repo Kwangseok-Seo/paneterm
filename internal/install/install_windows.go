@@ -25,7 +25,7 @@ func manifestDir() (string, error) {
 	return filepath.Join(dir, "paneterm"), nil
 }
 
-func register(manifest string) error {
+func register(manifest, exe string) error {
 	k, _, err := registry.CreateKey(registry.CURRENT_USER, hostKey, registry.SET_VALUE)
 	if err != nil {
 		return keyError(err)

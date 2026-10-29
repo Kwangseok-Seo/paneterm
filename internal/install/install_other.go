@@ -3,6 +3,7 @@
 package install
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,6 +27,18 @@ func manifestDir() (string, error) {
 }
 
 // Chrome on macOS and Linux finds host manifests by their folder alone.
-func register(manifest string) error { return nil }
+// What register starts is the agent, where there is one.
+func register(manifest, exe string) error {
+	if usesAgent {
+		return startAgent(exe)
+	}
+	return nil
+}
 
-func unregister(manifest string) error { return os.Remove(manifest) }
+func unregister(manifest string) error {
+	var err error
+	if usesAgent {
+		err = stopAgent()
+	}
+	return errors.Join(err, os.Remove(manifest))
+}

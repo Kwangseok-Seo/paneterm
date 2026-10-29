@@ -44,6 +44,16 @@ and points Chrome to it from a registry key under
 `HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts`, which is
 where Chrome looks there. `uninstall` removes the key and the folder.
 
+On macOS, `install` also has launchd start an agent from a plist in
+`~/Library/LaunchAgents`, and macOS may tell you that a background item
+was added. The host Chrome starts hands each tab to the agent, which runs
+the shell, because a shell under Chrome would be quarantined with it:
+Chrome's `Info.plist` sets `LSFileQuarantineEnabled`, which marks every
+file that Chrome or a process under it creates, and Gatekeeper then
+refuses to run programs built there. Run `install` again after rebuilding
+the host, which restarts the agent on the new build. `uninstall` stops the
+agent and removes its file.
+
 ## Using it
 
 - Each tab runs its own shell. **+** opens a tab and **×** closes one,
@@ -73,22 +83,17 @@ worth knowing what can reach it:
 - **Web pages can't talk to the extension.** It declares no
   `externally_connectable` and injects no content scripts.
 - **Nothing listens on the network.** The host speaks only over the pipes
-  Chrome gives it, unlike terminals served from a localhost port.
+  Chrome gives it, unlike terminals served from a localhost port. On macOS
+  it hands them to the agent over a Unix socket in
+  `~/Library/Application Support/paneterm`, a folder only you can open.
+  Any program running as you can reach that socket, as it could start a
+  shell anyway.
 
 ## Limitations
 
 - Google Chrome only. Other Chromium browsers (Arc, Brave, Edge) read host
   manifests from their own folders or registry keys, which `install`
   doesn't write yet.
-- On macOS, files that programs in the shell create carry Chrome's
-  quarantine attribute (`com.apple.quarantine`), as if Chrome had
-  downloaded them: Chrome's `Info.plist` sets `LSFileQuarantineEnabled`,
-  and the shell runs under Chrome. Gatekeeper then refuses to run
-  programs built there (a `go build` output is killed), and warns about
-  unsigned libraries that programs unpack and load, such as the native
-  transport of Netty, a Java library. Build programs in another terminal.
-  For a library that a program unpacks, your rc file can test
-  `TERM_PROGRAM` to set the program up differently in paneterm.
 - On Windows there is no way yet to pick a shell other than PowerShell.
 - No keyboard shortcuts for tabs yet, no splits, and no sessions that
   survive closing the panel.

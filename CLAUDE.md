@@ -17,8 +17,11 @@ maintainer may be in Korean; that never reaches the files.
 - `internal/session`: one PTY session per host process (a ConPTY running
   PowerShell on Windows). The panel/host protocol is documented on
   `session.Message`.
-- `internal/install`: writes the host manifest Chrome reads, and on Windows
-  the registry key that points to it.
+- `internal/agent`: on macOS, the LaunchAgent that runs sessions outside
+  Chrome's process tree, and the relay that hands it Chrome's pipes
+  (ADR-0002). Unix only.
+- `internal/install`: writes the host manifest Chrome reads, on Windows
+  the registry key that points to it, and on macOS the agent's plist.
 - `e2e/`: drives the real extension in Chromium on Linux, in Docker.
 - Decisions: `docs/adr/`.
 
@@ -38,7 +41,11 @@ maintainer may be in Korean; that never reaches the files.
 
 - `go test ./...` everywhere. `internal/session` tests are per OS (Unix PTY
   with sh, Windows ConPTY with PowerShell). On Windows, also cross-compile
-  the Unix test binary and run it in a Linux container.
+  the Unix test binaries (`agent`, `install`, `session`) and run them in a
+  Linux container, from their package folder with the repo mounted:
+  `TestPanelConnectsToHostName` reads `extension/sidepanel.js`.
 - The Windows install tests write to `HKCU\Software\paneterm-test` and
-  delete it; they never touch Chrome's real host key.
+  delete it; they never touch Chrome's real host key. The others replace
+  `launchctl`, so no test loads a real LaunchAgent; that, and the agent
+  escaping quarantine, can only be checked on a Mac.
 - `e2e/run.sh` before any change to the extension or the protocol.
