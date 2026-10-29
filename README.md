@@ -83,10 +83,12 @@ worth knowing what can reach it:
 - On macOS, files that programs in the shell create carry Chrome's
   quarantine attribute (`com.apple.quarantine`), as if Chrome had
   downloaded them: Chrome's `Info.plist` sets `LSFileQuarantineEnabled`,
-  and the shell runs under Chrome. Gatekeeper may then warn about an
-  unsigned library that a program unpacks and loads, such as the native
-  transport of Netty, a Java library. Your rc file can test `TERM_PROGRAM`
-  to set such a program up differently in paneterm.
+  and the shell runs under Chrome. Gatekeeper then refuses to run
+  programs built there (a `go build` output is killed), and warns about
+  unsigned libraries that programs unpack and load, such as the native
+  transport of Netty, a Java library. Build programs in another terminal.
+  For a library that a program unpacks, your rc file can test
+  `TERM_PROGRAM` to set the program up differently in paneterm.
 - On Windows there is no way yet to pick a shell other than PowerShell.
 - No keyboard shortcuts for tabs yet, no splits, and no sessions that
   survive closing the panel.
