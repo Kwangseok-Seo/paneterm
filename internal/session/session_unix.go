@@ -89,7 +89,7 @@ func shellCommand() *exec.Cmd {
 	}
 	cmd := exec.Command(shell, "-l")
 	cmd.Dir, _ = os.UserHomeDir()
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
+	cmd.Env = shellEnv("TERM=xterm-256color", "COLORTERM=truecolor")
 	// A shell without a locale treats input as ASCII and mangles anything
 	// else. Terminal.app sets one on startup for the same reason; apps
 	// started from the Dock, Chrome included, may have none to pass on.

@@ -65,6 +65,16 @@ func TestLocaleDefaultsToUTF8(t *testing.T) {
 	p.waitOutput("lang=" + fallbackLocale())
 }
 
+// Whatever terminal Chrome was started from.
+func TestTermProgramNamesPaneterm(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	t.Setenv("TERM_PROGRAM", "iTerm.app")
+	t.Setenv("TERM_PROGRAM_VERSION", "3.5.0")
+	p := startPanel(t)
+	p.typeLine(`echo "term=$TERM prog=$TERM_PROGRAM ver=${TERM_PROGRAM_VERSION-unset}"`)
+	p.waitOutput("term=xterm-256color prog=paneterm ver=unset")
+}
+
 func TestNonASCIIRoundTrips(t *testing.T) {
 	p := startPanel(t)
 	p.typeLine("printf 'got:%s\\n' 한글")

@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"io"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -151,6 +152,28 @@ func TestExitReportsCode(t *testing.T) {
 	p.typeLine("exit 3")
 	if code := p.waitExit(); code != 3 {
 		t.Fatalf("exit code = %d, want 3", code)
+	}
+}
+
+// Each name shellEnv sets appears once, with its value, whatever this
+// process had under it: of two, Windows would take the first.
+func TestShellEnvReplacesInherited(t *testing.T) {
+	t.Setenv("TERM", "dumb")
+	t.Setenv("TERM_PROGRAM", "iTerm.app")
+	t.Setenv("TERM_PROGRAM_VERSION", "3.5.0")
+	got := map[string][]string{}
+	for _, kv := range shellEnv("TERM=xterm-256color") {
+		k, v, _ := strings.Cut(kv, "=")
+		got[k] = append(got[k], v)
+	}
+	for k, want := range map[string][]string{
+		"TERM":                 {"xterm-256color"},
+		"TERM_PROGRAM":         {"paneterm"},
+		"TERM_PROGRAM_VERSION": nil,
+	} {
+		if !slices.Equal(got[k], want) {
+			t.Errorf("%s = %q, want %q", k, got[k], want)
+		}
 	}
 }
 

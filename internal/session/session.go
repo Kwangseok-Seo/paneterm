@@ -7,6 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"runtime"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -119,4 +123,28 @@ func pumpInput(in io.Reader, pty io.Writer, resize func(cols, rows uint16) error
 			s.send(Message{T: "error", Msg: fmt.Sprintf("unknown message type %q", m.T)})
 		}
 	}
+}
+
+// shellEnv is the environment the shell starts with: this process's, with
+// TERM_PROGRAM=paneterm and set in place of whatever it had under those
+// names. TERM_PROGRAM is where terminals put their name (Apple_Terminal,
+// iTerm.app, vscode), so rc files can set up paneterm's shells alone. One
+// handed down from whatever started Chrome names a terminal the shell is
+// not in, and so does the TERM_PROGRAM_VERSION beside it, which goes too.
+func shellEnv(set ...string) []string {
+	set = append([]string{"TERM_PROGRAM=paneterm"}, set...)
+	drop := []string{"TERM_PROGRAM_VERSION"}
+	for _, kv := range set {
+		name, _, _ := strings.Cut(kv, "=")
+		drop = append(drop, name)
+	}
+	same := func(a, b string) bool { return a == b }
+	if runtime.GOOS == "windows" {
+		same = strings.EqualFold // Windows matches names in any case
+	}
+	env := slices.DeleteFunc(os.Environ(), func(kv string) bool {
+		name, _, _ := strings.Cut(kv, "=")
+		return slices.ContainsFunc(drop, func(d string) bool { return same(name, d) })
+	})
+	return append(env, set...)
 }

@@ -3,6 +3,7 @@
 package session
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -99,6 +100,27 @@ func TestOutOfRangeSizeKeepsSession(t *testing.T) {
 	p.send(Message{T: "resize", Cols: 40000, Rows: 0})
 	p.typeLine(`"size=$([Console]::WindowWidth)x$([Console]::WindowHeight):"`)
 	p.waitOutput("size=32766x1:")
+}
+
+// Whatever terminal Chrome was started from, and however it spelled the
+// name: Windows reads names in any case.
+func TestTermProgramNamesPaneterm(t *testing.T) {
+	// Setting a name that exists keeps its spelling, so unset it first.
+	t.Setenv("TERM_PROGRAM", "")
+	os.Unsetenv("TERM_PROGRAM")
+	t.Setenv("Term_Program", "vscode")
+	t.Setenv("TERM_PROGRAM_VERSION", "1.95.0")
+	p := startPanel(t)
+	p.typeLine(`"term=$env:TERM_PROGRAM ver=$($null -eq $env:TERM_PROGRAM_VERSION)"`)
+	p.waitOutput("term=paneterm ver=True")
+}
+
+// The rest of the environment reaches the shell, non-ASCII intact.
+func TestEnvironmentPassesThrough(t *testing.T) {
+	t.Setenv("PANETERM_TEST", "한글")
+	p := startPanel(t)
+	p.typeLine(`"got:" + $env:PANETERM_TEST`)
+	p.waitOutput("got:한글")
 }
 
 func TestNonASCIIRoundTrips(t *testing.T) {

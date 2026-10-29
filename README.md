@@ -54,6 +54,9 @@ where Chrome looks there. `uninstall` removes the key and the folder.
   its number when there is none. Double-click a tab to name it yourself;
   clearing the name gives it back to the title.
 - When the shell exits, press Enter to start a new one.
+- The shell's environment has `TERM_PROGRAM=paneterm`, the variable
+  Terminal.app, iTerm2 and VS Code set to their own names, so your rc
+  files can tell paneterm's shells apart.
 - On Windows the shell is PowerShell 7 (`pwsh`) if it is installed, and
   Windows PowerShell otherwise.
 - If the panel says `Specified native messaging host not found`, run
@@ -77,6 +80,13 @@ worth knowing what can reach it:
 - Google Chrome only. Other Chromium browsers (Arc, Brave, Edge) read host
   manifests from their own folders or registry keys, which `install`
   doesn't write yet.
+- On macOS, files that programs in the shell create carry Chrome's
+  quarantine attribute (`com.apple.quarantine`), as if Chrome had
+  downloaded them: Chrome's `Info.plist` sets `LSFileQuarantineEnabled`,
+  and the shell runs under Chrome. Gatekeeper may then warn about an
+  unsigned library that a program unpacks and loads, such as the native
+  transport of Netty, a Java library. Your rc file can test `TERM_PROGRAM`
+  to set such a program up differently in paneterm.
 - On Windows there is no way yet to pick a shell other than PowerShell.
 - No keyboard shortcuts for tabs yet, no splits, and no sessions that
   survive closing the panel.

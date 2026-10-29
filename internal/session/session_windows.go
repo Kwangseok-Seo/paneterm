@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -187,6 +189,10 @@ func spawn(hpc windows.Handle, shell string) (windows.Handle, error) {
 	if err != nil {
 		return 0, err
 	}
+	env, err := envBlock()
+	if err != nil {
+		return 0, err
+	}
 	var dir *uint16
 	if home, err := os.UserHomeDir(); err == nil {
 		dir, _ = windows.UTF16PtrFromString(home)
@@ -195,11 +201,32 @@ func spawn(hpc windows.Handle, shell string) (windows.Handle, error) {
 	// shell would inherit. A terminal's shell must not.
 	setConsoleCtrlHandler.Call(0, 0)
 	var pi windows.ProcessInformation
-	if err := windows.CreateProcess(app, cmdline, nil, nil, false, windows.EXTENDED_STARTUPINFO_PRESENT, nil, dir, &si.StartupInfo, &pi); err != nil {
+	if err := windows.CreateProcess(app, cmdline, nil, nil, false, windows.EXTENDED_STARTUPINFO_PRESENT|windows.CREATE_UNICODE_ENVIRONMENT, env, dir, &si.StartupInfo, &pi); err != nil {
 		return 0, fmt.Errorf("start %s: %w", shell, err)
 	}
 	windows.CloseHandle(pi.Thread)
 	return pi.Process, nil
+}
+
+// envBlock is shellEnv in the form CreateProcess takes: sorted by name in
+// any case, which Windows asks for and os/exec does too, each entry ending
+// in a NUL and the block in one more.
+func envBlock() (*uint16, error) {
+	env := shellEnv()
+	name := func(kv string) string {
+		k, _, _ := strings.Cut(kv, "=")
+		return strings.ToUpper(k)
+	}
+	slices.SortStableFunc(env, func(a, b string) int { return strings.Compare(name(a), name(b)) })
+	var block []uint16
+	for _, kv := range env {
+		s, err := windows.UTF16FromString(kv)
+		if err != nil {
+			return nil, err
+		}
+		block = append(block, s...)
+	}
+	return &append(block, 0)[0], nil
 }
 
 // wait returns the shell's exit code once it exits, and closes the process
