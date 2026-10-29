@@ -17,3 +17,10 @@ Services helper app started per tab would also leave Chrome's tree without a
 resident process, at the cost of an app bundle to install and a launch per
 tab. Removing the attribute after the fact would also remove it from real
 downloads.
+
+Amended 2026-10-29, after a run on a Mac: under the agent, a `go build`
+output in the panel had no quarantine and ran. The costs seen there are a
+Background Items notification on install, and privacy prompts (for folders
+such as Documents) that name paneterm-host rather than Chrome and come back
+whenever the binary changes: a build that differed only in its build ID
+was asked again. The decision is unchanged.

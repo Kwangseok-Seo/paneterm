@@ -45,14 +45,19 @@ and points Chrome to it from a registry key under
 where Chrome looks there. `uninstall` removes the key and the folder.
 
 On macOS, `install` also has launchd start an agent from a plist in
-`~/Library/LaunchAgents`, and macOS may tell you that a background item
-was added. The host Chrome starts hands each tab to the agent, which runs
-the shell, because a shell under Chrome would be quarantined with it:
+`~/Library/LaunchAgents`, and macOS tells you that a background item was
+added. The host Chrome starts hands each tab to the agent, which runs the
+shell, because a shell under Chrome would be quarantined with it:
 Chrome's `Info.plist` sets `LSFileQuarantineEnabled`, which marks every
 file that Chrome or a process under it creates, and Gatekeeper then
 refuses to run programs built there. Run `install` again after rebuilding
 the host, which restarts the agent on the new build. `uninstall` stops the
 agent and removes its file.
+
+The agent also means that when a program in the shell first opens a
+folder macOS guards, such as Documents, macOS asks whether
+`paneterm-host` may, not Chrome. It asks again after each rebuild, since a
+binary that `go build` signs is known by its contents.
 
 ## Using it
 
